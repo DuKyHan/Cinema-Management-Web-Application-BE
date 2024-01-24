@@ -1,0 +1,25 @@
+name: Deploy
+on:
+  workflow_run:
+    workflows: ['Build']
+    branches: [master]
+    types:
+      - completed
+jobs:
+  deploy:
+    # only run if the build job was successful
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USERNAME }}
+          password: ${{ secrets.DEPLOY_PASSWORD }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          script: |
+            docker ps -q --filter "name=cinemawebbe" | grep -q . && docker stop cinemawebbe && docker rm -fv cinemawebbe
+            docker image prune -f
+            docker pull dukyhan2312/cinemawebbe:latest
+            docker run --name cinemawebbe --env-file=.env -p 3000:3000 -tid dukyhan2312/cinemawebbe
