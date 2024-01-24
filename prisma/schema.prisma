@@ -1,0 +1,519 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DB_URL")
+  shadowDatabaseUrl = env("DB_SHADOW_URL")
+}
+
+model Account {
+  id                  Int                   @id @default(autoincrement())
+  email               String                @unique
+  password            String
+  isAccountDisabled   Boolean               @default(false)
+  isAccountVerified   Boolean               @default(false)
+  isEmailVerified     Boolean               @default(false)
+  createdAt           DateTime?             @default(now())
+  updatedAt           DateTime?             @default(now()) @updatedAt
+  files               File[]
+  profile             Profile?
+  tokens              Token[]
+  accountRoles        AccountInRole[]
+  accountBannedBy     AccountBan[]          @relation(name: "accountBannedBy")
+  accountBan          AccountBan[]          @relation(name: "accountBan")
+  accountVerifiedBy   AccountVerification[] @relation(name: "accountVerifiedBy")
+  accountVerification AccountVerification[] @relation(name: "accountVerification")
+  BlockedChat         Chat[]                @relation(name: "blockedByAccount")
+  Chat                Chat[]                @relation(name: "createdByAccount")
+  OwnChat             Chat[]                @relation(name: "ownerAccount")
+  DisableCinema       Cinema[]              @relation(name: "cinemaBannedBy")
+  cinemaVerifiers     Cinema[]              @relation(name: "cinemaVerifier")
+  ChatParticipant     ChatParticipant[]
+  report              Report[]              @relation(name: "reporter")
+  reviewReport        Report[]              @relation(name: "reportReviewer")
+  news                News[]
+  notifications       Notification[]
+  Ticket              Ticket[]
+  CinemaBrand         CinemaBrand[]         @relation(name: "cinemaOwner")
+  ReportMessage       ReportMessage[]       @relation(name: "reportMessageSender")
+  NewsViewer          NewsViewer[]
+}
+
+model Role {
+  id          Int             @id @default(autoincrement())
+  name        String          @unique
+  description String?
+  createdAt   DateTime?       @default(now())
+  updatedAt   DateTime?       @default(now()) @updatedAt
+  accountRole AccountInRole[]
+}
+
+model AccountInRole {
+  accountId Int
+  roleId    Int
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  role      Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @default(now()) @updatedAt
+
+  @@id([accountId, roleId])
+}
+
+model Profile {
+  id               Int                @id @unique
+  account          Account            @relation(fields: [id], references: [id], onDelete: Cascade)
+  username         String?
+  firstName        String?
+  lastName         String?
+  dateOfBirth      DateTime?
+  gender           String?
+  bio              String?
+  phoneNumber      String?
+  locationId       Int?               @unique
+  location         Location?          @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  avatarId         Int?               @unique
+  avatar           File?              @relation(fields: [avatarId], references: [id], onDelete: SetNull)
+  createdAt        DateTime?          @default(now())
+  updatedAt        DateTime?          @default(now()) @updatedAt
+  InterestedGenres InterestedGenres[]
+}
+
+model InterestedGenres {
+  profileId Int
+  genreId   Int
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  genre     Genre   @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, genreId])
+}
+
+model Token {
+  accountId Int
+  type      String
+  token     String
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @default(now())
+  deletedAt DateTime?
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@id([accountId, type])
+}
+
+model Location {
+  id           Int       @id @default(autoincrement())
+  addressLine1 String?
+  addressLine2 String?
+  locality     String?
+  region       String?
+  country      String?
+  latitude     Float?
+  longitude    Float?
+  createdAt    DateTime? @default(now())
+  updatedAt    DateTime? @default(now()) @updatedAt
+  profile      Profile?
+  cinema       Cinema?
+}
+
+model File {
+  id                      Int                      @id @default(autoincrement())
+  name                    String
+  internalName            String                   @unique
+  mimetype                String
+  path                    String
+  size                    Float
+  sizeUnit                String
+  createdAt               DateTime?                @default(now())
+  updatedAt               DateTime?                @default(now()) @updatedAt
+  createdBy               Int
+  account                 Account                  @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  cinemalLogo             CinemaBrand?             @relation(name: "logo")
+  cinemalBanner           Cinema?                  @relation(name: "banner")
+  cinemalFile             CinemaFile?
+  profile                 Profile?
+  accountVerificationFile AccountVerificationFile?
+  reportMessageFile       ReportMessageFile?
+  news                    News[]
+  chat                    Chat[]
+  filmFile                Film?
+}
+
+model Cinema {
+  id                Int               @id @default(autoincrement())
+  name              String            @unique
+  description       String
+  status            String            @default("pending")
+  isDisabled        Boolean           @default(false)
+  disabledBy        Int?
+  disabledByAccount Account?          @relation(name: "cinemaBannedBy", fields: [disabledBy], references: [id], onDelete: SetNull)
+  disabledComment   String?
+  banner            Int?              @unique
+  bannerRelation    File?             @relation(name: "banner", fields: [banner], references: [id], onDelete: SetNull)
+  createdAt         DateTime?         @default(now())
+  updatedAt         DateTime?         @default(now()) @updatedAt
+  verifierId        Int?
+  verifier          Account?          @relation(name: "cinemaVerifier", fields: [verifierId], references: [id])
+  verifierComment   String?
+  cinemaBrandId     Int
+  cinemaBrand       CinemaBrand       @relation(fields: [cinemaBrandId], references: [id], onDelete: Cascade)
+  locationId        Int?              @unique
+  location          Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  CinemalFile       CinemaFile[]
+  FoodAndBeverage   FoodAndBeverage[]
+  news              News[]
+  CinemaFilm        CinemaFilm[]
+  Room              Room[]
+  Notification      Notification[]
+}
+
+model CinemaBrand {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  logo         Int?     @unique
+  logoRelation File?    @relation(name: "logo", fields: [logo], references: [id], onDelete: SetNull)
+  ownerId      Int
+  owner        Account  @relation(name: "cinemaOwner", fields: [ownerId], references: [id])
+  Cinema       Cinema[]
+}
+
+model CinemaFile {
+  cinemaId Int
+  fileId   Int    @id @unique
+  cinema   Cinema @relation(fields: [cinemaId], references: [id], onDelete: Cascade)
+  file     File   @relation(fields: [fileId], references: [id], onDelete: Cascade)
+}
+
+model Room {
+  roomId     Int          @id @default(autoincrement())
+  name       String
+  status     String       @default("available")
+  seat       Seat[]
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime?    @default(now()) @updatedAt
+  cinemaId   Int
+  Cinema     Cinema       @relation(fields: [cinemaId], references: [id], onDelete: Cascade)
+  CinemaFilm CinemaFilm[]
+}
+
+model Seat {
+  seatId         Int              @id @default(autoincrement())
+  name           String?
+  row            Int
+  column         Int
+  status         String           @default("avaiable")
+  roomId         Int
+  room           Room             @relation(fields: [roomId], references: [roomId], onDelete: Cascade)
+  Ticket         Ticket[]
+  CinemaFilmSeat CinemaFilmSeat[]
+}
+
+model FoodAndBeverage {
+  id           Int            @id @default(autoincrement())
+  name         String
+  description  String
+  quantity     Int
+  price        Int
+  isPublished  Boolean        @default(false)
+  cinemaId     Int
+  Cinema       Cinema         @relation(fields: [cinemaId], references: [id], onDelete: Cascade)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @default(now()) @updatedAt
+  Notification Notification[]
+}
+
+model Film {
+  id            Int          @id @default(autoincrement())
+  name          String
+  description   String
+  AgeRestricted String
+  Duration      Int
+  TrailerLink   String?
+  thumbnailId   Int?         @unique
+  thumbnail     File?        @relation(fields: [thumbnailId], references: [id], onDelete: SetNull)
+  Actor         Actor[]
+  News          News[]
+  CinemaFilm    CinemaFilm[]
+  FilmGenre     FilmGenre[]
+}
+
+model Genre {
+  id               Int                @id @default(autoincrement())
+  name             String             @unique
+  FilmGenre        FilmGenre[]
+  InterestedGenres InterestedGenres[]
+}
+
+model FilmGenre {
+  filmId  Int
+  genreId Int
+  Film    Film  @relation(fields: [filmId], references: [id], onDelete: Cascade)
+  Genre   Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([filmId, genreId])
+}
+
+model CinemaFilm {
+  id                 Int                  @id @default(autoincrement())
+  filmId             Int
+  cinemaId           Int
+  roomId             Int
+  Film               Film                 @relation(fields: [filmId], references: [id], onDelete: Cascade)
+  Cinema             Cinema               @relation(fields: [cinemaId], references: [id], onDelete: Cascade)
+  Room               Room                 @relation(fields: [roomId], references: [roomId], onDelete: Cascade)
+  CinemaFilmSeat     CinemaFilmSeat[]
+  CinemaFilmPremiere CinemaFilmPremiere[]
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @default(now()) @updatedAt
+}
+
+model CinemaFilmPremiere {
+  id           Int        @id @default(autoincrement())
+  premiere     DateTime
+  cinemaFilmId Int
+  CinemaFilm   CinemaFilm @relation(fields: [cinemaFilmId], references: [id], onDelete: Cascade)
+  Ticket       Ticket[]
+}
+
+model CinemaFilmSeat {
+  cinemaFilmId Int
+  CinemaFilm   CinemaFilm @relation(fields: [cinemaFilmId], references: [id], onDelete: Cascade)
+  seatId       Int
+  Seat         Seat       @relation(fields: [seatId], references: [seatId], onDelete: Cascade)
+  price        Int
+
+  @@id([cinemaFilmId, seatId])
+}
+
+model Ticket {
+  id         Int      @id @default(autoincrement())
+  seatId     Int
+  premiereId Int
+  price      Int
+  accountId  Int
+  status     String   @default("paid")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  Seat                  Seat                    @relation(fields: [seatId], references: [seatId], onDelete: Cascade)
+  Account               Account                 @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  CinemaFilmPremiere    CinemaFilmPremiere      @relation(fields: [premiereId], references: [id], onDelete: Cascade)
+  TicketFoodAndBeverage TicketFoodAndBeverage[]
+  Notification          Notification[]
+}
+
+model TicketFoodAndBeverage {
+  ticketId          Int
+  foodAndBeverageId Int
+  quantity          Int
+
+  Ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@id([ticketId, foodAndBeverageId])
+}
+
+model Actor {
+  id     Int    @id @default(autoincrement())
+  name   String
+  filmId Int
+  film   Film   @relation(fields: [filmId], references: [id], onDelete: Cascade)
+}
+
+model Chat {
+  id               Int               @id @default(autoincrement())
+  name             String?
+  isBlocked        Boolean           @default(false)
+  blockedBy        Int?
+  blockedByAccount Account?          @relation(name: "blockedByAccount", fields: [blockedBy], references: [id], onDelete: Cascade)
+  blockedAt        DateTime?
+  isGroup          Boolean           @default(false)
+  createdBy        Int
+  createdByAccount Account           @relation(name: "createdByAccount", fields: [createdBy], references: [id], onDelete: Cascade)
+  ownerId          Int
+  owner            Account           @relation(name: "ownerAccount", fields: [ownerId], references: [id], onDelete: Cascade)
+  avatar           Int?
+  avatarFile       File?             @relation(fields: [avatar], references: [id], onDelete: SetNull)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @default(now()) @updatedAt
+  ChatMessage      ChatMessage[]
+  ChatParticipant  ChatParticipant[]
+}
+
+model ChatParticipant {
+  id          Int           @id @default(autoincrement())
+  chatId      Int
+  Chat        Chat          @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  accountId   Int
+  Account     Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  read        Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @default(now()) @updatedAt
+  ChatMessage ChatMessage[]
+}
+
+model ChatMessage {
+  id        Int             @id @default(autoincrement())
+  chatId    Int
+  Chat      Chat            @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender    Int
+  Sender    ChatParticipant @relation(fields: [sender], references: [id], onDelete: Cascade)
+  message   String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @default(now()) @updatedAt
+}
+
+model AccountBan {
+  id                 Int       @id @default(autoincrement())
+  accountId          Int
+  account            Account   @relation(name: "accountBan", fields: [accountId], references: [id], onDelete: Cascade)
+  performedBy        Int
+  performedByAccount Account   @relation(name: "accountBannedBy", fields: [performedBy], references: [id], onDelete: Cascade)
+  isBanned           Boolean
+  note               String?
+  createdAt          DateTime? @default(now())
+  updatedAt          DateTime? @default(now()) @updatedAt
+}
+
+model AccountVerification {
+  id                      Int                       @id @default(autoincrement())
+  accountId               Int
+  account                 Account                   @relation(name: "accountVerification", fields: [accountId], references: [id], onDelete: Cascade)
+  performedBy             Int?
+  performedByAccount      Account?                  @relation(name: "accountVerifiedBy", fields: [performedBy], references: [id], onDelete: Cascade)
+  status                  String                    @default("pending")
+  isVerified              Boolean
+  content                 String?
+  note                    String?
+  createdAt               DateTime?                 @default(now())
+  updatedAt               DateTime?                 @default(now()) @updatedAt
+  accountVerificationFile AccountVerificationFile[]
+}
+
+model AccountVerificationFile {
+  accountVerificationId Int
+  fileId                Int                 @id @unique
+  accountVerification   AccountVerification @relation(fields: [accountVerificationId], references: [id], onDelete: Cascade)
+  file                  File                @relation(fields: [fileId], references: [id], onDelete: Cascade)
+}
+
+model News {
+  id              Int            @id @default(autoincrement())
+  type            String         @default("general")
+  title           String         @db.VarChar(255)
+  thumbnail       Int?
+  thumbnailFile   File?          @relation(fields: [thumbnail], references: [id], onDelete: SetNull)
+  content         String
+  contentFormat   String         @default("plaintext")
+  authorId        Int
+  author          Account        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  status          String         @default("pending")
+  rejectionReason String?
+  publishedAt     DateTime       @default(now())
+  closedAt        DateTime?
+  views           Int            @default(0)
+  popularity      Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @default(now()) @updatedAt
+  cinemaId        Int?
+  ciname          Cinema?        @relation(fields: [cinemaId], references: [id], onDelete: Cascade)
+  filmId          Int?
+  film            Film?          @relation(fields: [filmId], references: [id], onDelete: Cascade)
+  Notification    Notification[]
+  NewsViewer      NewsViewer[]
+}
+
+model NewsViewer {
+  newsId    Int
+  accountId Int
+  News      News    @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  Account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@id([newsId, accountId])
+}
+
+model Report {
+  id              Int             @id @default(autoincrement())
+  reporterId      Int
+  reporter        Account         @relation(name: "reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reviewerId      Int?
+  reviewer        Account?        @relation(name: "reportReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  type            String
+  title           String
+  // content
+  reviewerMessage String?
+  status          String          @default("pending")
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @default(now()) @updatedAt
+  notification    Notification[]
+  reportMessage   ReportMessage[]
+}
+
+// model ReportInAccount {
+//   id                Int     @id @unique
+//   report            Report  @relation(fields: [id], references: [id], onDelete: Cascade)
+//   reportedAccountId Int
+//   reportedAccount   Account @relation(name: "reportedAccount", fields: [reportedAccountId], references: [id], onDelete: Cascade)
+// }
+
+// model ReportInNews {
+//   id             Int    @id @unique
+//   report         Report @relation(fields: [id], references: [id], onDelete: Cascade)
+//   reportedNewsId Int
+//   reportedNews   News   @relation(name: "reportedNews", fields: [reportedNewsId], references: [id], onDelete: Cascade)
+// }
+
+model ReportMessage {
+  id        Int                 @id @default(autoincrement())
+  reportId  Int
+  report    Report              @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  content   String
+  senderId  Int
+  sender    Account             @relation(name: "reportMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  file      ReportMessageFile[]
+  first     Boolean             @default(false)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @default(now()) @updatedAt
+}
+
+model ReportMessageFile {
+  reportMessageId Int
+  fileId          Int           @id @unique
+  file            File          @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @default(now()) @updatedAt
+  ReportMessage   ReportMessage @relation(fields: [reportMessageId], references: [id])
+}
+
+model Notification {
+  id                Int              @id @default(autoincrement())
+  accountId         Int
+  account           Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type              String
+  from              String?
+  title             String
+  description       String
+  shortDescription  String?
+  read              Boolean          @default(false)
+  pushOnly          Boolean          @default(false)
+  reportId          Int?
+  report            Report?          @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  ticketId          Int?
+  Ticket            Ticket?          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  cinemaId          Int?
+  Cinema            Cinema?          @relation(fields: [cinemaId], references: [id], onDelete: Cascade)
+  newsId            Int?
+  News              News?            @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  foodAndBeverageId Int?
+  FoodAndBeverage   FoodAndBeverage? @relation(fields: [foodAndBeverageId], references: [id], onDelete: Cascade)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @default(now()) @updatedAt
+}
+
+model TicketSearchHistory {
+  id        Int      @id @default(autoincrement())
+  accountId Int
+  query     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}

@@ -1,0 +1,1 @@
+export const CHAT_GROUP_NAME_MAX_LENGTH = 100;
