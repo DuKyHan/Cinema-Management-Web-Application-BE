@@ -17,7 +17,21 @@ export const seedProfiles = async (
   },
 ) => {
   const locations: Location[] = Array.from({ length: accounts.length }).map(
-    () => generateLocation(),
+    () => {
+      const loc = generateLocation();
+      return {
+        id: loc.id,
+        addressLine1: [loc.addressLine1, loc.locality, loc.region].join(', '),
+        addressLine2: null,
+        locality: null,
+        region: null,
+        country: loc.country,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        createdAt: loc.createdAt,
+        updatedAt: loc.updatedAt,
+      };
+    },
   );
   const profileTemplates = loadProfiles();
 
