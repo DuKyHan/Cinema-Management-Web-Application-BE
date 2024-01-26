@@ -5,29 +5,8 @@ import fs from 'fs';
 import path from 'path';
 import { ageRestricted } from 'src/film/constants';
 import { AppPrismaClient } from 'src/prisma';
-import { getNextActorId, getNextFilmId, getNextGenreId } from '../utils';
+import { getNextActorId, getNextFilmId } from '../utils';
 import { seedFiles } from './seed-file';
-
-enum EGenre {
-  Action = 'action',
-  Adventure = 'adventure',
-  Animation = 'animation',
-  Comedy = 'comedy',
-  Crime = 'crime',
-  Documentary = 'documentary',
-  Drama = 'drama',
-  Family = 'family',
-  Fantasy = 'fantasy',
-  History = 'history',
-  Horror = 'horror',
-  Music = 'music',
-  Mystery = 'mystery',
-  Romance = 'romance',
-  ScienceFiction = 'science-fiction',
-  TvMovie = 'tv-movie',
-  Thriller = 'thriller',
-  War = 'war',
-}
 
 const trailers = [
   'https://www.youtube.com/embed/NmzuHjWmXOc',
@@ -38,11 +17,14 @@ const trailers = [
 
 export const seedFilms = async (
   prisma: AppPrismaClient,
+  data: {
+    genres: Genre[];
+  },
   options: {
     skipInsertIntoDatabase?: boolean;
   },
 ) => {
-  const genres = await createFilmGenre();
+  const { genres } = data;
   const { films, filmGenres, filmActors } = await readFilms(
     prisma,
     { genres: genres },
@@ -51,9 +33,6 @@ export const seedFilms = async (
   if (options?.skipInsertIntoDatabase) {
     return { films };
   }
-  await prisma.genre.createMany({
-    data: genres,
-  });
   await prisma.film.createMany({
     data: films,
   });
@@ -64,14 +43,6 @@ export const seedFilms = async (
     data: filmActors,
   });
   return { films };
-};
-
-const createFilmGenre = async () => {
-  const genres: Genre[] = Object.values(EGenre).map((genre) => ({
-    id: getNextGenreId(),
-    name: genre,
-  }));
-  return genres;
 };
 
 const mapGenreNameToId = (

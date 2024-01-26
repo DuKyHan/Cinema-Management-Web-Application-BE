@@ -8,9 +8,11 @@ import { seedCinemas } from './modules/seed-cinemas';
 import { resetBucket } from './modules/seed-file';
 import { seedFilms } from './modules/seed-films';
 import { seedFoods } from './modules/seed-food';
+import { seedGenres } from './modules/seed-genres';
 import { seedNews } from './modules/seed-news';
 import { seedNotifications } from './modules/seed-notifications';
 import { seedProfiles } from './modules/seed-profile';
+import { seedProfileInterests } from './modules/seed-profile-interests';
 import { seedReports } from './modules/seed-reports';
 import { seedRooms } from './modules/seed-room';
 import { seedSeats } from './modules/seed-seats';
@@ -58,6 +60,14 @@ const seed = async () => {
   );
   const defaultAccountIds = defaultAccounts.map((a) => a.id);
 
+  const { genres } = await runWithTimer(
+    () =>
+      seedGenres(prisma, {
+        skipInsertIntoDatabase: runWithoutDb,
+      }),
+    '- Seeding genres...',
+  );
+
   const { profiles } = await runWithTimer(
     () =>
       seedProfiles(prisma, accounts, {
@@ -67,11 +77,24 @@ const seed = async () => {
     '- Seeding profiles...',
   );
 
+  const { profileInterests } = await runWithTimer(
+    () =>
+      seedProfileInterests(prisma, {
+        profiles: profiles,
+        genres: genres,
+      }),
+    '- Seeding profile interests...',
+  );
+
   const { films } = await runWithTimer(
     () =>
-      seedFilms(prisma, {
-        skipInsertIntoDatabase: runWithoutDb,
-      }),
+      seedFilms(
+        prisma,
+        { genres: genres },
+        {
+          skipInsertIntoDatabase: runWithoutDb,
+        },
+      ),
     '- Seeding films...',
   );
 

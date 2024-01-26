@@ -1,3 +1,4 @@
+import { fakerVI } from '@faker-js/faker';
 import { faker as fakerEn } from '@faker-js/faker/locale/en';
 import { Account, Location, PrismaClient, Profile } from '@prisma/client';
 import { readFileSync } from 'fs';
@@ -69,7 +70,7 @@ export const seedProfiles = async (
       dateOfBirth: fakerEn.date.between({ from: '1950-01-01', to: new Date() }),
       gender: gender,
       bio: profileTemplates[profileIndex % profileTemplates.length].bio,
-      phoneNumber: fakerEn.phone.number(),
+      phoneNumber: fakerVI.phone.number('+84#########'),
       createdAt: createdAt,
       updatedAt: updatedAt,
       locationId: locations[profileIndex].id,
