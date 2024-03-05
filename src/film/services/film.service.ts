@@ -279,4 +279,56 @@ export class FilmService extends AbstractService {
       },
     });
   }
+
+  async getFilmRevenue(id: number) {
+    const res = await this.prisma.ticket.aggregate({
+      where: {
+        CinemaFilmPremiere: {
+          CinemaFilm: {
+            filmId: id,
+          },
+        },
+      },
+      _sum: {
+        price: true,
+      },
+    });
+    return res._sum.price;
+  }
+
+  async getFilmScreenings(id: number) {
+    const res = await this.prisma.cinemaFilmPremiere.count({
+      where: {
+        CinemaFilm: {
+          filmId: id,
+        },
+      },
+    });
+    return res;
+  }
+
+  async groupFilmRevenueByCinema(id: number) {
+    const res = await this.prisma.$queryRaw`
+      SELECT "Cinema"."id", "Cinema"."name", sum("price")::int as "revenue"
+      FROM "Ticket"
+      JOIN "CinemaFilmPremiere" ON "CinemaFilmPremiere"."id" = "Ticket"."premiereId"
+      JOIN "CinemaFilm" ON "CinemaFilm"."id" = "CinemaFilmPremiere"."cinemaFilmId"
+      JOIN "Cinema" ON "Cinema"."id" = "CinemaFilm"."cinemaId"
+      WHERE "CinemaFilm"."filmId" = ${id}
+      GROUP BY "Cinema"."id"
+      `;
+    return res;
+  }
+
+  async groupFilmScreeningsByCinema(id: number) {
+    const res = await this.prisma.$queryRaw`
+      SELECT "Cinema"."id", "Cinema"."name", count(*)::int as "screenings"
+      FROM "CinemaFilmPremiere"
+      JOIN "CinemaFilm" ON "CinemaFilm"."id" = "CinemaFilmPremiere"."cinemaFilmId"
+      JOIN "Cinema" ON "Cinema"."id" = "CinemaFilm"."cinemaId"
+      WHERE "CinemaFilm"."filmId" = ${id}
+      GROUP BY "Cinema"."id"
+      `;
+    return res;
+  }
 }

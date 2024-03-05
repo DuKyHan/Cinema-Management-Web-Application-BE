@@ -159,120 +159,126 @@ export class TicketService extends AbstractService {
   async createTicket(context: RequestContext, dto: CreateTicketDto) {
     this.logCaller(context, this.createTicket);
 
-    return this.prisma.$transaction(async (tx) => {
-      // Check if seat is available
-      const oneStepBeforeYou = await tx.ticket.findFirst({
-        where: {
-          premiereId: dto.premiereId,
-          seatId: dto.seatId,
-        },
-      });
-      if (oneStepBeforeYou != null) {
-        throw new SeatNotAvailableException();
-      }
-
-      const cinemaSeat = await tx.cinemaFilmSeat.findFirst({
-        where: {
-          seatId: dto.seatId,
-        },
-      });
-      if (cinemaSeat == null) {
-        throw new SeatNotAvailableException();
-      }
-
-      let foodBeveragesPrice = 0;
-      let foodBeverages: FoodAndBeverage[] = [];
-      let ticket: Ticket;
-      if (dto.foodBeverages != null && dto.foodBeverages.length > 0) {
-        foodBeverages = await tx.foodAndBeverage.findMany({
+    return this.prisma.$transaction(
+      async (tx) => {
+        // Check if seat is available
+        const oneStepBeforeYou = await tx.ticket.findFirst({
           where: {
-            id: { in: dto.foodBeverages.map((item) => item.id) },
-          },
-        });
-        foodBeveragesPrice = foodBeverages.reduce(
-          (acc, item) =>
-            acc +
-            dto.foodBeverages!.find((i) => i.id === item.id)!.quantity *
-              item.price,
-          0,
-        );
-        // Check if all food quantity still available
-        const foodBeveragesMap = new Map<number, number>();
-        foodBeverages.forEach((item) => {
-          foodBeveragesMap.set(item.id, item.quantity);
-        });
-        dto.foodBeverages.forEach((item) => {
-          const quantity = foodBeveragesMap.get(item.id);
-          if (quantity == null || quantity < item.quantity) {
-            throw new FoodOutStockException();
-          }
-          foodBeveragesMap.set(item.id, quantity - item.quantity);
-        });
-
-        ticket = await tx.ticket.create({
-          data: {
             premiereId: dto.premiereId,
-            accountId: context.account.id,
-            price: cinemaSeat.price + foodBeveragesPrice,
             seatId: dto.seatId,
           },
-          include: this.getInclude(),
         });
+        if (oneStepBeforeYou != null) {
+          throw new SeatNotAvailableException();
+        }
 
-        const ticketFoodBeverages = await tx.ticketFoodAndBeverage.createMany({
-          data: dto.foodBeverages.map((item) => ({
-            ticketId: ticket.id,
-            foodAndBeverageId: item.id,
-            quantity: item.quantity,
-          })),
+        const cinemaSeat = await tx.cinemaFilmSeat.findFirst({
+          where: {
+            seatId: dto.seatId,
+          },
         });
-        // Update food and beverage quantity
-        for (const [id, quantity] of foodBeveragesMap.entries()) {
-          await tx.foodAndBeverage.update({
+        if (cinemaSeat == null) {
+          throw new SeatNotAvailableException();
+        }
+
+        let foodBeveragesPrice = 0;
+        let foodBeverages: FoodAndBeverage[] = [];
+        let ticket: Ticket;
+        if (dto.foodBeverages != null && dto.foodBeverages.length > 0) {
+          foodBeverages = await tx.foodAndBeverage.findMany({
             where: {
-              id: id,
-            },
-            data: {
-              quantity: quantity,
+              id: { in: dto.foodBeverages.map((item) => item.id) },
             },
           });
+          foodBeveragesPrice = foodBeverages.reduce(
+            (acc, item) =>
+              acc +
+              dto.foodBeverages!.find((i) => i.id === item.id)!.quantity *
+                item.price,
+            0,
+          );
+          // Check if all food quantity still available
+          const foodBeveragesMap = new Map<number, number>();
+          foodBeverages.forEach((item) => {
+            foodBeveragesMap.set(item.id, item.quantity);
+          });
+          dto.foodBeverages.forEach((item) => {
+            const quantity = foodBeveragesMap.get(item.id);
+            if (quantity == null || quantity < item.quantity) {
+              throw new FoodOutStockException();
+            }
+            foodBeveragesMap.set(item.id, quantity - item.quantity);
+          });
+
+          ticket = await tx.ticket.create({
+            data: {
+              premiereId: dto.premiereId,
+              accountId: context.account.id,
+              price: cinemaSeat.price + foodBeveragesPrice,
+              seatId: dto.seatId,
+            },
+            include: this.getInclude(),
+          });
+
+          const ticketFoodBeverages = await tx.ticketFoodAndBeverage.createMany(
+            {
+              data: dto.foodBeverages.map((item) => ({
+                ticketId: ticket.id,
+                foodAndBeverageId: item.id,
+                quantity: item.quantity,
+              })),
+            },
+          );
+          // Update food and beverage quantity
+          for (const [id, quantity] of foodBeveragesMap.entries()) {
+            await tx.foodAndBeverage.update({
+              where: {
+                id: id,
+              },
+              data: {
+                quantity: quantity,
+              },
+            });
+          }
+        } else {
+          ticket = await tx.ticket.create({
+            data: {
+              premiereId: dto.premiereId,
+              accountId: context.account.id,
+              price: cinemaSeat.price + foodBeveragesPrice,
+              seatId: dto.seatId,
+            },
+            include: this.getInclude(),
+          });
         }
-      } else {
-        ticket = await tx.ticket.create({
-          data: {
-            premiereId: dto.premiereId,
-            accountId: context.account.id,
-            price: cinemaSeat.price + foodBeveragesPrice,
-            seatId: dto.seatId,
-          },
-          include: this.getInclude(),
+
+        const ticketOutput = this.mapToDto(ticket);
+
+        this.emailService.sendTicketEmail(context, context.account.email, {
+          ticketId: ticket.id,
+          film: ticketOutput.film!.name,
+          cinema: ticketOutput.cinema!.name,
+          room: ticketOutput.room!.name,
+          seat: ticketOutput.seat!.name,
+          foodAndBeverages: foodBeverages.map((item) => ({
+            name: item.name,
+            quantity: dto.foodBeverages!.find((i) => i.id === item.id)!
+              .quantity,
+            price:
+              item.price *
+              dto.foodBeverages!.find((i) => i.id === item.id)!.quantity,
+          })),
+          totalPrice: ticket.price,
         });
-      }
 
-      const ticketOutput = this.mapToDto(ticket);
+        if (dto.foodBeverages == null || dto.foodBeverages.length === 0) {
+          return ticket;
+        }
 
-      this.emailService.sendTicketEmail(context, context.account.email, {
-        ticketId: ticket.id,
-        film: ticketOutput.film!.name,
-        cinema: ticketOutput.cinema!.name,
-        room: ticketOutput.room!.name,
-        seat: ticketOutput.seat!.name,
-        foodAndBeverages: foodBeverages.map((item) => ({
-          name: item.name,
-          quantity: dto.foodBeverages!.find((i) => i.id === item.id)!.quantity,
-          price:
-            item.price *
-            dto.foodBeverages!.find((i) => i.id === item.id)!.quantity,
-        })),
-        totalPrice: ticket.price,
-      });
-
-      if (dto.foodBeverages == null || dto.foodBeverages.length === 0) {
         return ticket;
-      }
-
-      return ticket;
-    });
+      },
+      { timeout: 15000 },
+    );
   }
 
   async deleteTicket(context: RequestContext, id: number) {

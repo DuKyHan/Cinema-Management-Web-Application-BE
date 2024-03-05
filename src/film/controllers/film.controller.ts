@@ -86,4 +86,40 @@ export class FilmController {
   ) {
     return this.filmService.deleteFilm(id);
   }
+
+  @RequireRoles(Role.Moderator, Role.Admin)
+  @Get(':id/revenue')
+  async getFilmRevenue(
+    @ReqContext() context: RequestContext,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.filmService.getFilmRevenue(id);
+  }
+
+  @RequireRoles(Role.Moderator, Role.Admin)
+  @Get(':id/screenings')
+  async getFilmScreenings(
+    @ReqContext() context: RequestContext,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.filmService.getFilmScreenings(id);
+  }
+
+  @RequireRoles(Role.Moderator, Role.Admin)
+  @Get(':id/revenue-by-cinema')
+  async getFilmRevenueByCinema(
+    @ReqContext() context: RequestContext,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.filmService.groupFilmRevenueByCinema(id);
+  }
+
+  @RequireRoles(Role.Moderator, Role.Admin)
+  @Get(':id/screenings-by-cinema')
+  async getFilmScreeningsByCinema(
+    @ReqContext() context: RequestContext,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.filmService.groupFilmScreeningsByCinema(id);
+  }
 }

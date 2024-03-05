@@ -31,7 +31,6 @@ import { GenreModule } from './genres/genre.module';
 import { NewsModule } from './news/news.module';
 import { NotificationModule } from './notification/notification.module';
 import { ProfileModule } from './profile/profile.module';
-import { RedisModule } from './redis/redis.module';
 import { ReportModule } from './report/report.module';
 import { RoleModule } from './role/role.module';
 import { RoomModule } from './room/room.module';
@@ -49,7 +48,7 @@ import { TokenModule } from './token/token.module';
     ProfileModule,
     AccountVerificationModule,
     RoleModule,
-    RedisModule,
+    //RedisModule,
     SeatModule,
     FileModule,
     FoodModule,
