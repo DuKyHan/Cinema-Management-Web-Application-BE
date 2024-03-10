@@ -1,6 +1,6 @@
 import { fakerEN } from '@faker-js/faker';
 import { Account, Cinema, CinemaBrand, Location } from '@prisma/client';
-import { CinemaStatus, cinemaStatuses } from 'src/cinema/constants';
+import { CinemaStatus } from 'src/cinema/constants';
 import { AppPrismaClient } from 'src/prisma';
 import {
   generateLocation,
@@ -94,7 +94,24 @@ export const seedCinemas = async (
     const location = generateLocation();
     locations.push(location);
 
-    const status = fakerEN.helpers.arrayElement(cinemaStatuses);
+    const status = fakerEN.helpers.weightedArrayElement([
+      {
+        weight: 10,
+        value: CinemaStatus.Verified,
+      },
+      {
+        weight: 5,
+        value: CinemaStatus.Pending,
+      },
+      {
+        weight: 1,
+        value: CinemaStatus.Rejected,
+      },
+      {
+        weight: 1,
+        value: CinemaStatus.Cancelled,
+      },
+    ]);
     const isDisabled = fakerEN.helpers.weightedArrayElement([
       {
         weight: 1,
@@ -117,9 +134,14 @@ export const seedCinemas = async (
       from: createdAt,
       to: new Date(),
     });
+    let name = fakerEN.company.name();
+    // Name must be unique
+    while (cinemas.some((c) => c.name === name)) {
+      name = fakerEN.company.name();
+    }
     cinemas.push({
       id: getNextCinemaId(),
-      name: fakerEN.company.name(),
+      name: name,
       banner: null,
       locationId: location.id,
       description: fakerEN.lorem.paragraph({ min: 1, max: 3 }),
