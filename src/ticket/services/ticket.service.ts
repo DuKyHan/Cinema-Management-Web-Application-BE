@@ -5,6 +5,8 @@ import { RequestContext } from 'src/common/request-context';
 import { AbstractService } from 'src/common/services';
 import { EmailService } from 'src/email/services';
 import { FoodOutStockException } from 'src/foods/exceptions';
+import { ticketPurchaseNotification } from 'src/notification/constants/notifications';
+import { NotificationService } from 'src/notification/services';
 import { PrismaService } from 'src/prisma';
 import { CreateTicketDto, TicketQueryDto, TicketSort } from '../dtos';
 import { TicketOutputDto } from '../dtos/ticket.output.dto';
@@ -16,6 +18,7 @@ export class TicketService extends AbstractService {
     logger: AppLogger,
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
+    private readonly notificationService: NotificationService,
   ) {
     super(logger);
   }
@@ -270,6 +273,15 @@ export class TicketService extends AbstractService {
           })),
           totalPrice: ticket.price,
         });
+
+        this.notificationService.sendNotification(
+          context,
+          context.account.id,
+          ticketPurchaseNotification({
+            ticketId: ticket.id,
+            filmName: ticketOutput.film!.name,
+          }),
+        );
 
         if (dto.foodBeverages == null || dto.foodBeverages.length === 0) {
           return ticket;
