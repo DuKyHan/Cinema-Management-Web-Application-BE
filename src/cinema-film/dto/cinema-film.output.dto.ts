@@ -2,6 +2,7 @@ import { Expose, Type } from 'class-transformer';
 import { CinemaOutputDto } from 'src/cinema/dtos/cinema.output.dto';
 import { FilmOutputDto } from 'src/film/dtos/film.output.dto';
 import { RoomOutputDto } from 'src/room/dtos';
+import { CinemaFilmPremieresOutputDto } from './cinema-film-premieres.output.dto';
 import { CinemaFilmSeatOutputDto } from './cinema-film-seat.output.dto';
 
 export class CinemaFilmOutputDto {
@@ -18,7 +19,8 @@ export class CinemaFilmOutputDto {
   roomId: number;
 
   @Expose()
-  premieres?: Date[];
+  @Type(() => CinemaFilmPremieresOutputDto)
+  premieres?: CinemaFilmPremieresOutputDto[];
 
   @Expose()
   @Type(() => CinemaOutputDto)

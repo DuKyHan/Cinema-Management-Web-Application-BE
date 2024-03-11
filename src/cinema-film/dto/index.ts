@@ -1,3 +1,4 @@
+export * from './cinema-film-premieres.output.dto';
 export * from './cinema-film-seat.dto';
 export * from './cinema-film-seat.output.dto';
 export * from './cinema-film-seat.query.dto';
